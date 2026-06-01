@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from './state/store.jsx';
+import { useToast } from './components/Toast.jsx';
 import Toolbar from './components/Toolbar.jsx';
 import LibraryGrid from './components/LibraryGrid.jsx';
 import EditPanel from './components/EditPanel.jsx';
@@ -16,8 +17,18 @@ const TABS = [
 
 export default function App() {
   const { state } = useStore();
+  const { showToast } = useToast();
   const [tab, setTab] = useState('library');
   const [cropId, setCropId] = useState(null);
+  const lastSavedAt = useRef(0);
+
+  // Toast whenever autosave completes (skip the initial mount value).
+  useEffect(() => {
+    if (state.savedAt && state.savedAt !== lastSavedAt.current) {
+      if (lastSavedAt.current !== 0) showToast('All changes saved', { type: 'success' });
+      lastSavedAt.current = state.savedAt;
+    }
+  }, [state.savedAt, showToast]);
 
   const count = state.imageOrder.length;
 

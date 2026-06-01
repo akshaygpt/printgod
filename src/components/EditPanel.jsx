@@ -7,12 +7,22 @@ export default function EditPanel({ onCrop }) {
   const { state, dispatch } = useStore();
   const solo = state.soloId && state.images[state.soloId] ? state.soloId : null;
   const targets = solo ? [solo] : state.selectedIds;
-  const primary = targets[0] ? state.images[targets[0]] : null;
+  // The photo shown in the preview: the solo pick, else the first selected,
+  // else the first imported. This is what the filmstrip / arrows navigate.
+  const primaryId = solo || state.selectedIds[0] || state.imageOrder[0] || null;
+  const primary = primaryId ? state.images[primaryId] : null;
   const comp = state.settings.printCompensation;
 
-  const setFilter = (key, value) =>
-    dispatch({ type: 'UPDATE_FILTER', key, value, targets });
+  const setFilter = (key, value) => dispatch({ type: 'UPDATE_FILTER', key, value, targets });
   const toggle = (key) => dispatch({ type: 'TOGGLE_FILTER', key, targets });
+
+  // Step the focused photo through the library; navigating focuses a single
+  // photo (solo) so edits land on the one you're looking at.
+  const idx = primaryId ? state.imageOrder.indexOf(primaryId) : -1;
+  const go = (delta) => {
+    const next = state.imageOrder[idx + delta];
+    if (next) dispatch({ type: 'SET_SOLO', id: next });
+  };
 
   if (!state.imageOrder.length) {
     return <div className="panel-empty">Import photos first, then edit them here.</div>;
@@ -25,14 +35,16 @@ export default function EditPanel({ onCrop }) {
           {solo ? (
             <>
               <strong>Solo edit</strong> — {state.images[solo].name}
-              <button className="link" onClick={() => dispatch({ type: 'SET_SOLO', id: null })}>
-                exit solo → bulk
-              </button>
+              {state.selectedIds.length > 0 && (
+                <button className="link" onClick={() => dispatch({ type: 'SET_SOLO', id: null })}>
+                  exit solo → bulk ({state.selectedIds.length})
+                </button>
+              )}
             </>
           ) : targets.length ? (
             <><strong>Bulk edit</strong> — {targets.length} selected</>
           ) : (
-            <span className="muted">Select photos in Library, or pick one to solo-edit.</span>
+            <span className="muted">Pick a photo below to edit it, or multi-select in Library for bulk edits.</span>
           )}
         </div>
 
@@ -84,9 +96,9 @@ export default function EditPanel({ onCrop }) {
             </button>
           </div>
 
-          {solo && (
-            <button className="btn" style={{ marginTop: 12 }} onClick={() => onCrop(solo)}>
-              Crop this photo…
+          {primary && !primary.needsReimport && (
+            <button className="btn" style={{ marginTop: 12 }} onClick={() => onCrop(primaryId)}>
+              Crop “{primary.name.length > 18 ? primary.name.slice(0, 17) + '…' : primary.name}”…
             </button>
           )}
         </fieldset>
@@ -95,20 +107,52 @@ export default function EditPanel({ onCrop }) {
       <section className="edit-preview">
         {primary ? (
           <div className="preview-stage">
+            <div className="preview-nav">
+              <button className="navbtn" disabled={idx <= 0} onClick={() => go(-1)} title="Previous photo">‹</button>
+              <span className="preview-pos">
+                {idx + 1} / {state.imageOrder.length} · <span className="muted">{primary.name}</span>
+              </span>
+              <button className="navbtn" disabled={idx < 0 || idx >= state.imageOrder.length - 1} onClick={() => go(1)} title="Next photo">›</button>
+            </div>
+
             <div className="preview-frame">
-              <img
-                src={primary.thumbUrl}
-                alt=""
-                style={{ filter: buildFilterCss(primary.filters, comp) }}
-              />
-              {overlayBackgrounds(primary.filters).length > 0 && (
-                <div className="tile-overlay" style={{ background: overlayBackgrounds(primary.filters).join(', ') }} />
-              )}
-              {primary.filters.grain > 0 && (
-                <div className="tile-grain" style={{ opacity: (primary.filters.grain / 100) * 0.4 }} />
+              {primary.needsReimport ? (
+                <div className="reimport" style={{ padding: 40 }}>Re-import this photo to preview & edit it.</div>
+              ) : (
+                <>
+                  <img src={primary.thumbUrl} alt="" style={{ filter: buildFilterCss(primary.filters, comp) }} />
+                  {overlayBackgrounds(primary.filters).length > 0 && (
+                    <div className="tile-overlay" style={{ background: overlayBackgrounds(primary.filters).join(', ') }} />
+                  )}
+                  {primary.filters.grain > 0 && (
+                    <div className="tile-grain" style={{ opacity: (primary.filters.grain / 100) * 0.4 }} />
+                  )}
+                </>
               )}
             </div>
             <small className="muted">Preview includes +{Math.round(comp * 100)}% print compensation.</small>
+
+            <div className="edit-filmstrip">
+              {state.imageOrder.map((id) => {
+                const img = state.images[id];
+                const isFocus = id === primaryId;
+                const isSelected = state.selectedIds.includes(id);
+                return (
+                  <button
+                    key={id}
+                    className={`film-item ${isFocus ? 'focus' : ''} ${isSelected ? 'sel' : ''}`}
+                    onClick={() => dispatch({ type: 'SET_SOLO', id })}
+                    title={img.name}
+                  >
+                    {img.needsReimport ? (
+                      <span className="film-reimport">⟲</span>
+                    ) : (
+                      <img src={img.thumbUrl} alt="" style={{ filter: buildFilterCss(img.filters, 0) }} />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         ) : (
           <div className="panel-empty">No photo selected.</div>

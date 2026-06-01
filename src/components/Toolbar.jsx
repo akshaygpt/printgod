@@ -68,6 +68,10 @@ export default function Toolbar() {
         </div>
       )}
 
+      <div className={`save-status ${state.saveStatus}`} title="Edits autosave to this browser">
+        {state.saveStatus === 'saving' ? '⟳ Saving…' : state.saveStatus === 'saved' ? '✓ Saved' : '• Autosave on'}
+      </div>
+
       <button className="btn danger" onClick={startFresh}>
         Start fresh
       </button>

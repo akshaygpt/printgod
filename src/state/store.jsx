@@ -59,6 +59,8 @@ function initState() {
     soloId: null,
     lastSelected: null,
     history: { past: [], future: [] },
+    saveStatus: 'idle', // 'idle' | 'saving' | 'saved'
+    savedAt: 0,
   };
   if (persisted) {
     return {
@@ -284,6 +286,12 @@ function docReducer(state, action) {
       return { ...state, pages };
     }
 
+    case 'MARK_SAVING':
+      return { ...state, saveStatus: 'saving' };
+
+    case 'MARK_SAVED':
+      return { ...state, saveStatus: 'saved', savedAt: action.at };
+
     case 'LOAD_DOC':
       return { ...state, ...action.doc };
 
@@ -330,9 +338,16 @@ function rootReducer(state, action) {
 export function StoreProvider({ children }) {
   const [state, dispatch] = useReducer(rootReducer, undefined, initState);
   const saveTimer = useRef(null);
+  const firstRun = useRef(true);
 
-  // Debounced persistence of document metadata (no pixel data).
+  // Debounced persistence of document metadata (no pixel data). Surfaces a
+  // 'saving' → 'saved' status that the UI uses for its indicator + toast.
   useEffect(() => {
+    if (firstRun.current) {
+      firstRun.current = false;
+      return; // nothing has changed yet on initial mount
+    }
+    dispatch({ type: 'MARK_SAVING' });
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       saveState({
@@ -341,6 +356,7 @@ export function StoreProvider({ children }) {
         pages: state.pages,
         settings: state.settings,
       });
+      dispatch({ type: 'MARK_SAVED', at: Date.now() });
     }, 600);
     return () => clearTimeout(saveTimer.current);
   }, [state.images, state.imageOrder, state.pages, state.settings]);

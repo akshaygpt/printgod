@@ -78,8 +78,15 @@ export function renderSlot(drawable, img, slot, { destW, destH, printComp = 0, b
   const ctx = canvas.getContext('2d');
   ctx.imageSmoothingQuality = 'high';
 
-  // Crop applies regardless of fit/fill.
-  const src = sourceRect(img, img.crop);
+  // Crop applies regardless of fit/fill. Source coordinates are derived from
+  // the actual drawable's pixel size (the preview passes a small thumbnail, the
+  // export passes the full-res image) so the same normalized crop works for both.
+  const natW = drawable.naturalWidth || drawable.width;
+  const natH = drawable.naturalHeight || drawable.height;
+  const crop = img.crop;
+  const src = crop
+    ? { sx: crop.x * natW, sy: crop.y * natH, sw: crop.w * natW, sh: crop.h * natH }
+    : { sx: 0, sy: 0, sw: natW, sh: natH };
 
   // Background (visible as letterbox bars in 'fit' mode).
   ctx.fillStyle = background;

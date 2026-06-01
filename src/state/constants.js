@@ -5,6 +5,7 @@ export const TARGET_DPI = 300;
 export const PAPER_SIZES = {
   A4: { label: 'A4', w: 210, h: 297 },
   A5: { label: 'A5', w: 148, h: 210 },
+  A6: { label: 'A6', w: 105, h: 148 },
   Letter: { label: 'Letter', w: 215.9, h: 279.4 },
   '4x6': { label: '4×6 in', w: 101.6, h: 152.4 },
 };

@@ -25,7 +25,7 @@ npm run build    # production bundle in dist/
    it (aspect-locked to its assigned slot), and undo/redo (⌘/Ctrl-Z /
    ⌘/Ctrl-Shift-Z) across both bulk and solo changes. Edits are **non-destructive**
    — stored as per-image params and only baked into pixels at export.
-3. **Layout templates** — A4 / A5 / Letter / 4×6, portrait/landscape. Eight
+3. **Layout templates** — A4 / A5 / A6 / Letter / 4×6, portrait/landscape. Eight
    templates: full-bleed, 2-up vertical, 2-up horizontal, 4-up, 6-up, 9-up
    contact sheet, polaroid+caption, magazine asymmetric. Per-slot fit
    (letterbox) vs fill (crop), drag photos between slots and from the tray,
