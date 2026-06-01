@@ -10,6 +10,11 @@ needs. Importing is front-and-center on the first screen; later steps unlock
 once photos exist. Undo/redo and reset are icon buttons in the header; a Back /
 Next bar drives the flow.
 
+**Visual identity:** an editorial "gallery" aesthetic — a warm paper palette
+(bone background, warm-black ink) with a single terracotta-clay accent, Fraunces
+(serif) for the wordmark and titles paired with Inter for the UI, hairline
+borders, soft shadows and generous spacing.
+
 ```bash
 npm install
 npm run dev      # http://localhost:5173
