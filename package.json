@@ -1,0 +1,22 @@
+{
+  "name": "printgod",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Client-side photo printing studio — import, bulk edit, layout templates, print-ready PDF export.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "heic2any": "^0.0.4",
+    "pdf-lib": "^1.17.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.11"
+  }
+}
