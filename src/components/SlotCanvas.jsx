@@ -24,7 +24,7 @@ export default function SlotCanvas({ img, slot, printComp, pxW, pxH }) {
     canvas.width = w;
     canvas.height = h;
     canvas.getContext('2d').drawImage(rendered, 0, 0);
-  }, [el, img, slot.fit, slot.imageId, printComp, pxW, pxH, JSON.stringify(img && img.filters), JSON.stringify(img && img.crop)]);
+  }, [el, img, slot.fit, slot.imageId, slot.zoom, slot.offsetX, slot.offsetY, printComp, pxW, pxH, JSON.stringify(img && img.filters), JSON.stringify(img && img.crop)]);
 
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />;
 }

@@ -123,5 +123,8 @@ export function makeSlot(def) {
     imageId: null,
     fit: 'fill', // 'fit' (letterbox) | 'fill' (crop)
     caption: def && def.caption ? '' : null,
+    zoom: 1, // 1 = exactly fit/fill the slot; <1 occupies less space; >1 zooms in
+    offsetX: 0, // pan, as a fraction of slot width  (-0.5..0.5)
+    offsetY: 0, // pan, as a fraction of slot height
   };
 }

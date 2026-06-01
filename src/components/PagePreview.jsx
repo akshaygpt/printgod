@@ -6,10 +6,11 @@ import SlotCanvas from './SlotCanvas.jsx';
 
 const SAFE_INSET_MM = 4; // safe-zone inset inside the cut line
 
-export default function PagePreview({ page, maxW, maxH, interactive = false, showOverlays = false, onCrop }) {
+export default function PagePreview({ page, maxW, maxH, ppm: ppmProp, interactive = false, showOverlays = false, onCrop, selectedSlot, onSelectSlot }) {
   const { state, dispatch } = useStore();
   const dims = pageDimsMm(state.settings);
-  const ppm = Math.min(maxW / dims.w, maxH / dims.h); // px per mm
+  // Explicit ppm (zoom mode) takes precedence over fit-to-container sizing.
+  const ppm = ppmProp != null ? ppmProp : Math.min(maxW / dims.w, maxH / dims.h);
   const W = dims.w * ppm;
   const H = dims.h * ppm;
   const rects = slotRectsMm(page, state.settings);
@@ -41,12 +42,14 @@ export default function PagePreview({ page, maxW, maxH, interactive = false, sho
           width: r.w * ppm,
           height: r.h * ppm,
         };
+        const isSel = selectedSlot && selectedSlot.pageId === page.id && selectedSlot.index === i;
         return (
           <div
             key={i}
-            className={`slot ${img ? 'filled' : 'empty'}`}
+            className={`slot ${img ? 'filled' : 'empty'} ${isSel ? 'slot-selected' : ''}`}
             style={style}
             draggable={interactive && !!img}
+            onClick={interactive && img && onSelectSlot ? () => onSelectSlot({ pageId: page.id, index: i }) : undefined}
             onDragStart={(e) => e.dataTransfer.setData('text/plain', JSON.stringify({ kind: 'slot', pageId: page.id, slotIndex: i }))}
             onDragOver={interactive ? (e) => e.preventDefault() : undefined}
             onDrop={interactive ? (e) => onDropSlot(e, i) : undefined}

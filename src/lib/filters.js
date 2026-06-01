@@ -95,23 +95,20 @@ export function renderSlot(drawable, img, slot, { destW, destH, printComp = 0, b
   ctx.save();
   ctx.filter = buildFilterCss(img.filters, printComp);
 
-  if (slot.fit === 'fit') {
-    // contain: whole (cropped) image visible, letterboxed.
-    const scale = Math.min(canvas.width / src.sw, canvas.height / src.sh);
-    const dw = src.sw * scale;
-    const dh = src.sh * scale;
-    const dx = (canvas.width - dw) / 2;
-    const dy = (canvas.height - dh) / 2;
-    ctx.drawImage(drawable, src.sx, src.sy, src.sw, src.sh, dx, dy, dw, dh);
-  } else {
-    // cover: fill slot, center-crop overflow.
-    const scale = Math.max(canvas.width / src.sw, canvas.height / src.sh);
-    const cropW = canvas.width / scale;
-    const cropH = canvas.height / scale;
-    const cropX = src.sx + (src.sw - cropW) / 2;
-    const cropY = src.sy + (src.sh - cropH) / 2;
-    ctx.drawImage(drawable, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
-  }
+  // Unified placement: 'fit' contains, 'fill' covers, then the per-slot zoom
+  // scales that (zoom<1 shrinks the photo so it occupies less of the slot,
+  // zoom>1 enlarges/crops it) and the offset pans it. Overflow is clipped to
+  // the slot; any uncovered area shows the background.
+  const base =
+    slot.fit === 'fit'
+      ? Math.min(canvas.width / src.sw, canvas.height / src.sh)
+      : Math.max(canvas.width / src.sw, canvas.height / src.sh);
+  const zoom = slot.zoom != null ? slot.zoom : 1;
+  const dw = src.sw * base * zoom;
+  const dh = src.sh * base * zoom;
+  const dx = (canvas.width - dw) / 2 + (slot.offsetX || 0) * canvas.width;
+  const dy = (canvas.height - dh) / 2 + (slot.offsetY || 0) * canvas.height;
+  ctx.drawImage(drawable, src.sx, src.sy, src.sw, src.sh, dx, dy, dw, dh);
   ctx.restore();
 
   // Manual overlays.

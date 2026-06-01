@@ -19,6 +19,7 @@ const UNDOABLE = new Set([
   'ASSIGN_SLOT',
   'MOVE_SLOT',
   'SET_SLOT_FIT',
+  'SET_SLOT_TRANSFORM',
   'SET_SLOT_CAPTION',
   'AUTO_FILL',
   'AUTO_LAYOUT',
@@ -237,6 +238,9 @@ function docReducer(state, action) {
             ...makeSlot(def),
             imageId: old ? old.imageId : null,
             fit: old ? old.fit : 'fill',
+            zoom: old && old.zoom != null ? old.zoom : 1,
+            offsetX: old ? old.offsetX || 0 : 0,
+            offsetY: old ? old.offsetY || 0 : 0,
             caption: def.caption ? (old && old.caption) || '' : null,
           };
         });
@@ -298,6 +302,15 @@ function docReducer(state, action) {
         pg.id !== action.pageId
           ? pg
           : { ...pg, slots: pg.slots.map((s, i) => (i === action.slotIndex ? { ...s, fit: action.fit } : s)) }
+      );
+      return { ...state, pages };
+    }
+
+    case 'SET_SLOT_TRANSFORM': {
+      const pages = state.pages.map((pg) =>
+        pg.id !== action.pageId
+          ? pg
+          : { ...pg, slots: pg.slots.map((s, i) => (i === action.slotIndex ? { ...s, ...action.transform } : s)) }
       );
       return { ...state, pages };
     }

@@ -33,7 +33,12 @@ npm run build    # production bundle in dist/
    all) photos preserving aspect ratio — every slot uses fit (no crop) and
    cross-orientation photos are paired onto a sheet to minimize wasted space.
    Margin/bleed (0/3/5mm) is drawn as a cut line + safe-zone overlay. A DPI badge
-   warns on any image rendering below 300 DPI for its slot.
+   warns on any image rendering below 300 DPI for its slot. Click any placed
+   photo to open a slot inspector: a **size-in-slot** slider (below 100% leaves
+   space around the photo), position nudges, fit/fill, crop and the full filter
+   set — so photos can be edited without leaving the layout. A preview zoom
+   control (Fit / 50% / 100% / 200% + slider) shows the sheet at actual print
+   size (100%) for close inspection.
 4. **Print orchestration** — the primary path generates a print-ready PDF with
    `pdf-lib`: exact paper dimensions, images embedded at a 300-DPI target. A
    `window.print()` fallback with a `@media print` stylesheet prints one page
