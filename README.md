@@ -1,8 +1,14 @@
-# PrintGod — client-side photo print studio
+# PrintGod — Print Photos Easy.
 
 Single-page React app for printing photos to a physical printer on glossy
 paper. Everything runs in the browser — **no backend, no uploads**. Photos are
 decoded, edited, laid out and exported to a print-ready PDF entirely client-side.
+
+The UI is a guided four-step flow shown as a horizontal stepper —
+**Upload → Edit → Layout → Print** — so each screen shows only what that step
+needs. Importing is front-and-center on the first screen; later steps unlock
+once photos exist. Undo/redo and reset are icon buttons in the header; a Back /
+Next bar drives the flow.
 
 ```bash
 npm install

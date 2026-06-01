@@ -6,11 +6,13 @@ import { buildFilterCss, overlayBackgrounds } from '../lib/filters.js';
 export default function EditPanel({ onCrop }) {
   const { state, dispatch } = useStore();
   const solo = state.soloId && state.images[state.soloId] ? state.soloId : null;
-  const targets = solo ? [solo] : state.selectedIds;
   // The photo shown in the preview: the solo pick, else the first selected,
   // else the first imported. This is what the filmstrip / arrows navigate.
   const primaryId = solo || state.selectedIds[0] || state.imageOrder[0] || null;
   const primary = primaryId ? state.images[primaryId] : null;
+  // Edits apply to the solo photo, the multi-selection, or — with neither — the
+  // single photo currently shown, so the screen is usable straight away.
+  const targets = solo ? [solo] : state.selectedIds.length ? state.selectedIds : primaryId ? [primaryId] : [];
   const comp = state.settings.printCompensation;
 
   const setFilter = (key, value) => dispatch({ type: 'UPDATE_FILTER', key, value, targets });
@@ -41,10 +43,12 @@ export default function EditPanel({ onCrop }) {
                 </button>
               )}
             </>
-          ) : targets.length ? (
-            <><strong>Bulk edit</strong> — {targets.length} selected</>
+          ) : state.selectedIds.length ? (
+            <><strong>Bulk edit</strong> — {state.selectedIds.length} selected</>
+          ) : primary ? (
+            <><strong>Editing</strong> — {primary.name}</>
           ) : (
-            <span className="muted">Pick a photo below to edit it, or multi-select in Library for bulk edits.</span>
+            <span className="muted">Add photos first.</span>
           )}
         </div>
 

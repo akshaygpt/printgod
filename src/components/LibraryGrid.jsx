@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useStore } from '../state/store.jsx';
 import { useImporter } from './useImporter.jsx';
 import { buildFilterCss, overlayBackgrounds } from '../lib/filters.js';
@@ -41,7 +41,6 @@ function Thumb({ id, onCrop }) {
         <span className="tile-dims">{img.w}×{img.h}</span>
       </div>
       <div className="tile-actions">
-        <button onClick={(e) => { e.stopPropagation(); dispatch({ type: 'SET_SOLO', id }); dispatch({ type: 'SELECT', id, mode: 'single' }); }}>Solo</button>
         <button disabled={img.needsReimport} onClick={(e) => { e.stopPropagation(); onCrop(id); }}>Crop</button>
         <button onClick={(e) => { e.stopPropagation(); dispatch({ type: 'REMOVE_IMAGES', ids: [id] }); }}>✕</button>
       </div>
@@ -51,14 +50,20 @@ function Thumb({ id, onCrop }) {
 
 export default function LibraryGrid({ onCrop }) {
   const { state, dispatch } = useStore();
-  const { run } = useImporter();
+  const { run, errors } = useImporter();
   const [dragOver, setDragOver] = useState(false);
+  const fileRef = useRef(null);
 
   const onDrop = (e) => {
     e.preventDefault();
     setDragOver(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length) run(e.dataTransfer.files);
   };
+  const onPick = (e) => { run(e.target.files); e.target.value = ''; };
+
+  const fileInput = (
+    <input ref={fileRef} type="file" accept="image/*,.heic,.heif" multiple hidden onChange={onPick} />
+  );
 
   if (!state.imageOrder.length) {
     return (
@@ -68,10 +73,13 @@ export default function LibraryGrid({ onCrop }) {
         onDragLeave={() => setDragOver(false)}
         onDrop={onDrop}
       >
+        {fileInput}
         <div className="dz-inner">
           <div className="dz-icon">🖼️</div>
-          <h2>Drop photos here</h2>
-          <p>JPG, PNG and HEIC supported. Or use “Import photos” above.</p>
+          <h2>Add your photos</h2>
+          <p>Drag &amp; drop here, or choose files. JPG, PNG and HEIC supported.</p>
+          <button className="btn primary big" onClick={() => fileRef.current.click()}>Import photos</button>
+          {errors.length > 0 && <p className="warn">⚠ {errors.length} file(s) failed to import</p>}
         </div>
       </div>
     );
@@ -84,22 +92,19 @@ export default function LibraryGrid({ onCrop }) {
       onDragLeave={() => setDragOver(false)}
       onDrop={onDrop}
     >
+      {fileInput}
       <div className="library-bar">
-        <span>{state.selectedIds.length} selected</span>
-        <button
-          className="btn"
-          disabled={!state.selectedIds.length}
-          onClick={() => dispatch({ type: 'AUTO_FILL', ids: state.selectedIds, template: 'full-bleed' })}
-        >
-          Add selected to layout →
+        <button className="btn primary" onClick={() => fileRef.current.click()}>+ Add photos</button>
+        <div className="divider" />
+        <button className="btn" onClick={() => dispatch({ type: 'SELECT_ALL' })}>Select all</button>
+        <button className="btn" disabled={!state.selectedIds.length} onClick={() => dispatch({ type: 'CLEAR_SELECTION' })}>
+          Clear{state.selectedIds.length ? ` (${state.selectedIds.length})` : ''}
         </button>
-        <button
-          className="btn danger"
-          disabled={!state.selectedIds.length}
-          onClick={() => dispatch({ type: 'REMOVE_IMAGES', ids: state.selectedIds })}
-        >
+        <button className="btn danger" disabled={!state.selectedIds.length} onClick={() => dispatch({ type: 'REMOVE_IMAGES', ids: state.selectedIds })}>
           Remove selected
         </button>
+        <div className="spacer" />
+        <span className="muted">Click to select · Shift-click for a range · ⌘/Ctrl-click to toggle</span>
       </div>
       <div className="grid">
         {state.imageOrder.map((id) => (
