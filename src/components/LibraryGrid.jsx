@@ -20,8 +20,8 @@ function Thumb({ id, onCrop }) {
       <div className="tile-img-wrap">
         {img.needsReimport ? (
           <div className="reimport">
-            <div className="reimport-icon">⟲</div>
-            <div>Re-import<br />to restore pixels</div>
+            <div className="reimport-icon">{state.hydrating ? '⏳' : '⟲'}</div>
+            <div>{state.hydrating ? 'Restoring…' : <>Re-import<br />to restore pixels</>}</div>
           </div>
         ) : (
           <>

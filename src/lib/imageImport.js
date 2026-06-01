@@ -72,7 +72,8 @@ async function processOne(file) {
   const { w, h } = dims(bmp);
   if (!w || !h) throw new Error(`Could not decode ${file.name}`);
 
-  // Full-resolution, sRGB-normalized copy (held only in memory, used for export).
+  // Full-resolution, sRGB-normalized copy. The blob is kept on the record so it
+  // can be persisted to IndexedDB; fullResUrl is the in-memory handle for export.
   const fullCanvas = drawTo(bmp, w, h);
   const fullBlob = await canvasToBlob(fullCanvas, 'image/jpeg', 0.95);
   const fullResUrl = URL.createObjectURL(fullBlob);
@@ -94,6 +95,7 @@ async function processOne(file) {
     h,
     thumbUrl,
     fullResUrl,
+    fullBlob,
     filters: { ...DEFAULT_FILTERS },
     crop: null,
     needsReimport: false,

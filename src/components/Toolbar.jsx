@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { useStore } from '../state/store.jsx';
 import { useImporter } from './useImporter.jsx';
 import { clearState } from '../lib/storage.js';
+import { clearAll as clearImageStore } from '../lib/imageStore.js';
 
 export default function Toolbar() {
   const { state, dispatch } = useStore();
@@ -20,6 +21,7 @@ export default function Toolbar() {
   const startFresh = () => {
     if (!confirm('Start fresh? This clears all photos, edits, layouts and saved state.')) return;
     clearState();
+    clearImageStore();
     dispatch({ type: 'RESET' });
   };
 

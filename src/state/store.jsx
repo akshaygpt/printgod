@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useRef } from 'react';
 import { DEFAULT_FILTERS, TEMPLATES, makeSlot } from './constants.js';
 import { loadState, saveState } from '../lib/storage.js';
+import * as imageStore from '../lib/imageStore.js';
 
 const StoreContext = createContext(null);
 
@@ -20,8 +21,53 @@ const UNDOABLE = new Set([
   'SET_SLOT_FIT',
   'SET_SLOT_CAPTION',
   'AUTO_FILL',
+  'AUTO_LAYOUT',
   'REMOVE_IMAGES',
 ]);
+
+// Classify an image's orientation from its aspect ratio.
+function orientationOf(img) {
+  const r = img.w / img.h;
+  if (r > 1.15) return 'land';
+  if (r < 0.87) return 'port';
+  return 'sq';
+}
+
+// Build a fresh set of pages that fits the given images without cropping
+// (every slot uses 'fit'). Cross-orientation photos are paired onto one sheet
+// to minimize wasted space; everything else gets a full-bleed page of its own.
+function autoLayoutPages(state, ids) {
+  const items = ids.filter((id) => state.images[id] && !state.images[id].needsReimport);
+  if (!items.length) return [newPage('full-bleed')];
+  const landscapePage = state.settings.orientation === 'landscape';
+
+  const mk = (template, slotIds) => {
+    const pg = newPage(template);
+    pg.slots = pg.slots.map((s, i) => ({ ...s, imageId: slotIds[i] != null ? slotIds[i] : null, fit: 'fit' }));
+    return pg;
+  };
+
+  const pages = [];
+  let i = 0;
+  while (i < items.length) {
+    const a = items[i];
+    const clsA = orientationOf(state.images[a]);
+    const b = items[i + 1];
+    const clsB = b ? orientationOf(state.images[b]) : null;
+
+    if (!landscapePage) {
+      // Portrait sheet: two landscapes stack vertically and fill it well.
+      if (clsA === 'land' && clsB === 'land') { pages.push(mk('2up-v', [a, b])); i += 2; continue; }
+    } else {
+      // Landscape sheet: two portraits sit side by side and fill it well.
+      if (clsA === 'port' && clsB === 'port') { pages.push(mk('2up-h', [a, b])); i += 2; continue; }
+    }
+    // Otherwise the photo already matches the sheet — give it the whole page.
+    pages.push(mk('full-bleed', [a]));
+    i += 1;
+  }
+  return pages;
+}
 
 function snapshot(s) {
   return { images: s.images, imageOrder: s.imageOrder, pages: s.pages, settings: s.settings };
@@ -61,14 +107,17 @@ function initState() {
     history: { past: [], future: [] },
     saveStatus: 'idle', // 'idle' | 'saving' | 'saved'
     savedAt: 0,
+    hydrating: false, // true while pixels are being restored from IndexedDB
   };
   if (persisted) {
+    const imageOrder = persisted.imageOrder || [];
     return {
       ...base,
       images: persisted.images || {},
-      imageOrder: persisted.imageOrder || [],
+      imageOrder,
       pages: persisted.pages && persisted.pages.length ? persisted.pages : base.pages,
       settings: { ...base.settings, ...(persisted.settings || {}) },
+      hydrating: imageOrder.length > 0, // metadata exists; pixels load async
     };
   }
   return base;
@@ -286,11 +335,67 @@ function docReducer(state, action) {
       return { ...state, pages };
     }
 
+    case 'HYDRATE_PIXELS': {
+      // Merge pixel data restored from IndexedDB into the metadata loaded from
+      // localStorage. Images with no restorable pixels are dropped, and their
+      // slots cleared, so no broken "re-import" placeholders linger.
+      const pixels = action.pixels || {};
+      const images = {};
+      const keep = [];
+      for (const id of state.imageOrder) {
+        const meta = state.images[id];
+        const px = pixels[id];
+        if (meta && px) {
+          images[id] = { ...meta, ...px, id, needsReimport: false };
+          keep.push(id);
+        }
+      }
+      // Pixel records present in IndexedDB but missing from metadata (e.g. the
+      // localStorage doc was cleared) are restored as fresh images.
+      for (const id of Object.keys(pixels)) {
+        if (images[id]) continue;
+        const px = pixels[id];
+        images[id] = {
+          id,
+          name: px.name || 'photo',
+          origSize: px.origSize || 0,
+          w: px.w,
+          h: px.h,
+          thumbUrl: px.thumbUrl,
+          fullResUrl: px.fullResUrl,
+          fullBlob: px.fullBlob,
+          filters: { ...DEFAULT_FILTERS },
+          crop: null,
+          needsReimport: false,
+        };
+        keep.push(id);
+      }
+      const removed = new Set(state.imageOrder.filter((id) => !images[id]));
+      const pages = removed.size
+        ? state.pages.map((pg) => ({
+            ...pg,
+            slots: pg.slots.map((s) => (removed.has(s.imageId) ? { ...s, imageId: null } : s)),
+          }))
+        : state.pages;
+      return {
+        ...state,
+        images,
+        imageOrder: keep,
+        pages,
+        hydrating: false,
+        selectedIds: state.selectedIds.filter((id) => images[id]),
+        soloId: state.soloId && images[state.soloId] ? state.soloId : null,
+      };
+    }
+
     case 'MARK_SAVING':
       return { ...state, saveStatus: 'saving' };
 
     case 'MARK_SAVED':
       return { ...state, saveStatus: 'saved', savedAt: action.at };
+
+    case 'AUTO_LAYOUT':
+      return { ...state, pages: autoLayoutPages(state, action.ids) };
 
     case 'LOAD_DOC':
       return { ...state, ...action.doc };
@@ -339,6 +444,35 @@ export function StoreProvider({ children }) {
   const [state, dispatch] = useReducer(rootReducer, undefined, initState);
   const saveTimer = useRef(null);
   const firstRun = useRef(true);
+  const skipSave = useRef(false);
+  const persisted = useRef(new Set()); // image ids whose pixels are in IndexedDB
+
+  // On mount, restore image pixels from IndexedDB and merge them into the
+  // metadata loaded from localStorage.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const recs = await imageStore.getAllImages();
+      if (!alive) return;
+      persisted.current = new Set(recs.map((r) => r.id));
+      const pixels = {};
+      for (const r of recs) {
+        if (!r.fullBlob) continue;
+        pixels[r.id] = {
+          fullResUrl: URL.createObjectURL(r.fullBlob),
+          thumbUrl: r.thumbUrl,
+          fullBlob: r.fullBlob,
+          w: r.w,
+          h: r.h,
+          name: r.name,
+          origSize: r.origSize,
+        };
+      }
+      skipSave.current = true; // hydration shouldn't trigger a save/toast
+      dispatch({ type: 'HYDRATE_PIXELS', pixels });
+    })();
+    return () => { alive = false; };
+  }, []);
 
   // Debounced persistence of document metadata (no pixel data). Surfaces a
   // 'saving' → 'saved' status that the UI uses for its indicator + toast.
@@ -346,6 +480,10 @@ export function StoreProvider({ children }) {
     if (firstRun.current) {
       firstRun.current = false;
       return; // nothing has changed yet on initial mount
+    }
+    if (skipSave.current) {
+      skipSave.current = false;
+      return; // hydration pass — already in sync with storage
     }
     dispatch({ type: 'MARK_SAVING' });
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -360,6 +498,32 @@ export function StoreProvider({ children }) {
     }, 600);
     return () => clearTimeout(saveTimer.current);
   }, [state.images, state.imageOrder, state.pages, state.settings]);
+
+  // Persist newly imported pixels to IndexedDB and prune removed ones.
+  useEffect(() => {
+    if (state.hydrating) return;
+    for (const id of state.imageOrder) {
+      const img = state.images[id];
+      if (img && img.fullBlob && !persisted.current.has(id)) {
+        persisted.current.add(id);
+        imageStore.putImage({
+          id,
+          name: img.name,
+          origSize: img.origSize,
+          w: img.w,
+          h: img.h,
+          fullBlob: img.fullBlob,
+          thumbUrl: img.thumbUrl,
+        });
+      }
+    }
+    for (const id of [...persisted.current]) {
+      if (!state.images[id]) {
+        persisted.current.delete(id);
+        imageStore.deleteImages([id]);
+      }
+    }
+  }, [state.images, state.imageOrder, state.hydrating]);
 
   // Keyboard: undo / redo.
   useEffect(() => {
@@ -382,17 +546,17 @@ export function StoreProvider({ children }) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // Warn before unload while loaded pixel data (which is never persisted) exists.
+  // Photos and edits are persisted (IndexedDB + localStorage), so only warn if
+  // a save is still in flight when the user tries to leave.
   useEffect(() => {
-    const hasPixels = state.imageOrder.some((id) => state.images[id] && !state.images[id].needsReimport);
     const onBeforeUnload = (e) => {
-      if (!hasPixels) return;
+      if (state.saveStatus !== 'saving') return;
       e.preventDefault();
       e.returnValue = '';
     };
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
-  }, [state.images, state.imageOrder]);
+  }, [state.saveStatus]);
 
   return <StoreContext.Provider value={{ state, dispatch }}>{children}</StoreContext.Provider>;
 }

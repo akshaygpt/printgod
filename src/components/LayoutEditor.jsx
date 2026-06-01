@@ -12,6 +12,16 @@ export default function LayoutEditor({ onCrop }) {
   const page = state.pages[activeIdx];
   const set = (settings) => dispatch({ type: 'SET_SETTINGS', settings });
 
+  const autoPopulate = () => {
+    const source = state.selectedIds.length ? state.selectedIds : state.imageOrder;
+    const ids = source.filter((id) => state.images[id] && !state.images[id].needsReimport);
+    if (!ids.length) return;
+    const hasAssignments = state.pages.some((p) => p.slots.some((s) => s.imageId));
+    if (hasAssignments && !confirm('Replace the current layout with an auto-populated one?')) return;
+    dispatch({ type: 'AUTO_LAYOUT', ids });
+    setActive(0);
+  };
+
   return (
     <div className="layout-editor">
       <aside className="layout-side">
@@ -60,6 +70,17 @@ export default function LayoutEditor({ onCrop }) {
               </button>
             ))}
           </div>
+        </section>
+
+        <section>
+          <h4>Auto-populate</h4>
+          <button className="btn primary" style={{ width: '100%' }} onClick={autoPopulate} disabled={!state.imageOrder.length}>
+            ✨ Auto-populate layout
+          </button>
+          <small className="muted" style={{ display: 'block', marginTop: 6 }}>
+            Builds pages from {state.selectedIds.length ? `${state.selectedIds.length} selected` : 'all'} photos,
+            preserving aspect ratio (fit, no crop) and pairing photos that fill the sheet best.
+          </small>
         </section>
 
         <section>

@@ -117,7 +117,7 @@ export default function EditPanel({ onCrop }) {
 
             <div className="preview-frame">
               {primary.needsReimport ? (
-                <div className="reimport" style={{ padding: 40 }}>Re-import this photo to preview & edit it.</div>
+                <div className="reimport" style={{ padding: 40 }}>{state.hydrating ? 'Restoring photo…' : 'Re-import this photo to preview & edit it.'}</div>
               ) : (
                 <>
                   <img src={primary.thumbUrl} alt="" style={{ filter: buildFilterCss(primary.filters, comp) }} />

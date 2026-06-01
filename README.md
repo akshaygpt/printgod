@@ -29,9 +29,11 @@ npm run build    # production bundle in dist/
    templates: full-bleed, 2-up vertical, 2-up horizontal, 4-up, 6-up, 9-up
    contact sheet, polaroid+caption, magazine asymmetric. Per-slot fit
    (letterbox) vs fill (crop), drag photos between slots and from the tray,
-   reorder/add/delete pages. Margin/bleed (0/3/5mm) is drawn as a cut line +
-   safe-zone overlay. A DPI badge warns on any image rendering below 300 DPI for
-   its slot.
+   reorder/add/delete pages. **Auto-populate** builds pages from the selected (or
+   all) photos preserving aspect ratio — every slot uses fit (no crop) and
+   cross-orientation photos are paired onto a sheet to minimize wasted space.
+   Margin/bleed (0/3/5mm) is drawn as a cut line + safe-zone overlay. A DPI badge
+   warns on any image rendering below 300 DPI for its slot.
 4. **Print orchestration** — the primary path generates a print-ready PDF with
    `pdf-lib`: exact paper dimensions, images embedded at a 300-DPI target. A
    `window.print()` fallback with a `@media print` stylesheet prints one page
@@ -40,8 +42,11 @@ npm run build    # production bundle in dist/
    duplex dialog detects odd/even pages and either exports one PDF (auto-duplex)
    or two (odds/evens) with a long-edge/short-edge flip diagram and step-by-step
    instructions.
-5. **State** — filter state, crop data, slot assignments, page order and print
-   settings persist to `localStorage` and warn before unload.
+5. **State** — editing metadata (filters, crops, slot assignments, page order,
+   settings) persists to `localStorage`; the actual image pixels persist to
+   **IndexedDB**. On refresh the session is fully restored — photos rehydrate
+   automatically, no re-import needed. Any photo whose pixels can't be restored
+   is dropped along with its slot, so no broken placeholders linger.
 
 ## Architecture
 
@@ -58,7 +63,8 @@ src/
                    render path shared by on-screen preview and PDF export
     layout.js      mm geometry for slots, gutters, margins; effective-DPI math
     pdf.js         pdf-lib export, calibration sheet, single-page, duplex split
-    storage.js     localStorage (metadata only — see note below)
+    storage.js     localStorage (editing metadata only)
+    imageStore.js  IndexedDB store for image pixels (blobs + thumbnails)
   components/
     App, Toolbar, LibraryGrid, EditPanel, CropModal,
     LayoutEditor, PagePreview, SlotCanvas, PrintPanel, DuplexModal
@@ -83,13 +89,16 @@ history: { past:[snapshot], future:[snapshot] }   // snapshot = {images,imageOrd
 - **PDF-first.** `pdf-lib` embeds full-resolution JPEGs at exact paper
   dimensions; this is the most reliable route to correct physical sizing.
   `window.print()` is a convenience fallback and is not pixel-exact.
-- **localStorage holds metadata, not pixels.** Persisting 50+ full-resolution
-  photos would blow past the ~5MB quota, and `blob:` object URLs don't survive a
-  reload anyway. So we persist only editing metadata (filters, crops, slot
-  assignments, page order, settings). After a reload, photos show a "re-import"
-  placeholder; re-importing the same files (matched by name + size) re-links them
-  to their saved edits. The unload warning fires whenever unsaved pixel data is
-  loaded.
+- **Two-tier persistence.** Editing metadata (filters, crops, slot assignments,
+  page order, settings) is small and changes often, so it lives in
+  `localStorage`. Image pixels are large, so the full-resolution JPEG blobs and
+  thumbnails live in **IndexedDB** (`lib/imageStore.js`), which has no practical
+  size limit and survives reloads. On startup the metadata loads synchronously
+  and pixels rehydrate asynchronously from IndexedDB, so a refresh fully restores
+  the session. If IndexedDB is unavailable (e.g. private browsing) or a blob was
+  evicted, the affected photos are dropped and their slots cleared rather than
+  left as broken placeholders. Autosave runs debounced; the unload warning only
+  fires if a save is still in flight.
 - **Filters** that CSS `filter` can express (brightness/contrast/saturate/
   grayscale/sepia/hue-rotate) are reused verbatim on the export canvas via
   `ctx.filter`; grain, vignette and fade are drawn as separate canvas passes.
