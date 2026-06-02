@@ -219,10 +219,10 @@ h4 {
 }
 .dz-inner p { font-size: 13px; color: var(--muted); margin: 0; }
 
-/* Photo grid: fixed 4 columns */
+/* Photo grid: auto-fill columns capped so thumbnails stay compact */
 .grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(150px, 180px));
   gap: 10px;
 }
 
