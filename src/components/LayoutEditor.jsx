@@ -1,9 +1,18 @@
 import React, { useState } from 'react';
 import { useStore } from '../state/store.jsx';
-import { PAPER_SIZES, MARGIN_OPTIONS, TEMPLATES, FILTER_CONTROLS, FILTER_TOGGLES, MM_PER_INCH } from '../state/constants.js';
+import { PAPER_SIZES, TEMPLATES, FILTER_CONTROLS, FILTER_TOGGLES, MM_PER_INCH } from '../state/constants.js';
 import PagePreview from './PagePreview.jsx';
 
-const SCREEN_PPM = 96 / MM_PER_INCH; // CSS reference: 100% ≈ actual print size
+const SCREEN_PPM = 96 / MM_PER_INCH;
+
+// Paper size display dimensions text
+const PAPER_DIM_LABELS = {
+  A4: '210 × 297',
+  A5: '148 × 210',
+  A6: '105 × 148',
+  Letter: '216 × 279',
+  '4x6': '102 × 152',
+};
 
 export default function LayoutEditor({ onCrop }) {
   const { state, dispatch } = useStore();
@@ -28,7 +37,6 @@ export default function LayoutEditor({ onCrop }) {
     goPage(0);
   };
 
-  // The slot currently being inspected/edited (may live on any page).
   const selPage = sel ? state.pages.find((p) => p.id === sel.pageId) : null;
   const selSlot = selPage ? selPage.slots[sel.index] : null;
   const selImg = selSlot && selSlot.imageId ? state.images[selSlot.imageId] : null;
@@ -43,9 +51,13 @@ export default function LayoutEditor({ onCrop }) {
 
   const ppm = zoom === 'fit' ? null : SCREEN_PPM * (zoom / 100);
 
+  // Margin as integer mm (0..10)
+  const marginVal = typeof state.settings.margin === 'number' ? state.settings.margin : 0;
+
   return (
     <div className="layout-editor">
       <aside className="layout-side">
+        {/* Slot inspector (shown when a slot is selected) */}
         {selImg && (
           <section className="slot-inspector">
             <div className="inspector-head">
@@ -64,7 +76,6 @@ export default function LayoutEditor({ onCrop }) {
                 value={Math.round((selSlot.zoom != null ? selSlot.zoom : 1) * 100)}
                 onChange={(e) => setTransform({ zoom: Number(e.target.value) / 100 })}
               />
-              <small className="muted">Below 100% leaves space around the photo.</small>
             </div>
 
             <div className="seg">
@@ -73,14 +84,16 @@ export default function LayoutEditor({ onCrop }) {
             </div>
 
             <div className="nudge-pad">
-              <button onClick={() => nudge(0, -0.05)} title="Up">↑</button>
-              <button onClick={() => nudge(-0.05, 0)} title="Left">←</button>
-              <button onClick={() => setTransform({ offsetX: 0, offsetY: 0, zoom: 1 })} title="Reset position & size">⊙</button>
-              <button onClick={() => nudge(0.05, 0)} title="Right">→</button>
-              <button onClick={() => nudge(0, 0.05)} title="Down">↓</button>
+              <button onClick={() => nudge(0, -0.05)} title="Up">&#8593;</button>
+              <button onClick={() => nudge(-0.05, 0)} title="Left">&#8592;</button>
+              <button onClick={() => setTransform({ offsetX: 0, offsetY: 0, zoom: 1 })} title="Reset">&#8857;</button>
+              <button onClick={() => nudge(0.05, 0)} title="Right">&#8594;</button>
+              <button onClick={() => nudge(0, 0.05)} title="Down">&#8595;</button>
             </div>
 
-            <button className="btn" style={{ width: '100%', marginTop: 8 }} onClick={() => onCrop(selSlot.imageId)}>✂ Crop…</button>
+            <button className="btn" style={{ width: '100%', marginTop: 8 }} onClick={() => onCrop(selSlot.imageId)}>
+              &#9986; Crop&hellip;
+            </button>
 
             <div className="inspector-filters">
               {FILTER_CONTROLS.map((c) => (
@@ -95,7 +108,10 @@ export default function LayoutEditor({ onCrop }) {
               ))}
               <div className="toggles">
                 {FILTER_TOGGLES.map((t) => (
-                  <button key={t.key} className={`toggle ${selImg.filters[t.key] ? 'on' : ''}`} onClick={() => dispatch({ type: 'TOGGLE_FILTER', key: t.key, targets: [selImg.id] })}>{t.label}</button>
+                  <button key={t.key} className={`toggle ${selImg.filters[t.key] ? 'on' : ''}`}
+                    onClick={() => dispatch({ type: 'TOGGLE_FILTER', key: t.key, targets: [selImg.id] })}>
+                    {t.label}
+                  </button>
                 ))}
                 <button className="toggle" onClick={() => dispatch({ type: 'RESET_FILTERS', targets: [selImg.id] })}>Reset</button>
               </div>
@@ -103,38 +119,80 @@ export default function LayoutEditor({ onCrop }) {
           </section>
         )}
 
+        {/* Layout panel header */}
+        <div className="layout-side-header">
+          <h3>Layout</h3>
+          <button
+            className="wand-btn"
+            onClick={autoPopulate}
+            disabled={!state.imageOrder.length}
+            title="Auto-populate layout"
+          >
+            &#10022;
+          </button>
+        </div>
+
+        {/* Paper size: 3-column card grid */}
         <section>
-          <h4>Paper</h4>
-          <div className="seg">
+          <span className="section-label">Paper Size</span>
+          <div className="paper-grid">
             {Object.keys(PAPER_SIZES).map((k) => (
-              <button key={k} className={state.settings.paperSize === k ? 'on' : ''} onClick={() => set({ paperSize: k })}>
-                {PAPER_SIZES[k].label}
+              <button
+                key={k}
+                className={`paper-card ${state.settings.paperSize === k ? 'on' : ''}`}
+                onClick={() => set({ paperSize: k })}
+              >
+                <span className="paper-icon" />
+                <span className="paper-name">{PAPER_SIZES[k].label}</span>
+                <span className="paper-dims">{PAPER_DIM_LABELS[k] || ''}</span>
               </button>
             ))}
-          </div>
-          <div className="seg">
-            <button className={state.settings.orientation === 'portrait' ? 'on' : ''} onClick={() => set({ orientation: 'portrait' })}>Portrait</button>
-            <button className={state.settings.orientation === 'landscape' ? 'on' : ''} onClick={() => set({ orientation: 'landscape' })}>Landscape</button>
           </div>
         </section>
 
+        {/* Orientation: segmented control */}
         <section>
-          <h4>Margin / Bleed</h4>
-          <div className="seg">
-            {MARGIN_OPTIONS.map((m) => (
-              <button key={m} className={state.settings.margin === m ? 'on' : ''} onClick={() => set({ margin: m })}>
-                {m}mm
-              </button>
-            ))}
+          <span className="section-label">Orientation</span>
+          <div className="seg-control">
+            <button
+              className={state.settings.orientation === 'portrait' ? 'on' : ''}
+              onClick={() => set({ orientation: 'portrait' })}
+            >
+              Portrait
+            </button>
+            <button
+              className={state.settings.orientation === 'landscape' ? 'on' : ''}
+              onClick={() => set({ orientation: 'landscape' })}
+            >
+              Landscape
+            </button>
           </div>
-          <label className="checkbox">
+        </section>
+
+        {/* Margin: icon-row slider (0..10 mm) */}
+        <section>
+          <span className="section-label">Margin</span>
+          <div className="margin-row">
+            <span className="margin-icon">&#9633;</span>
+            <input
+              type="range"
+              min="0"
+              max="10"
+              step="1"
+              value={marginVal}
+              onChange={(e) => set({ margin: Number(e.target.value) })}
+            />
+            <span className="margin-val">{marginVal}mm</span>
+          </div>
+          <label className="checkbox" style={{ marginTop: 4 }}>
             <input type="checkbox" checked={overlays} onChange={(e) => setOverlays(e.target.checked)} />
-            Show cut line + safe zone
+            Show cut / safe zone
           </label>
         </section>
 
+        {/* Template: 4-column grid */}
         <section>
-          <h4>Template for page {activeIdx + 1}</h4>
+          <span className="section-label">Template — page {activeIdx + 1}</span>
           <div className="template-grid">
             {Object.entries(TEMPLATES).map(([key, t]) => (
               <button
@@ -144,27 +202,16 @@ export default function LayoutEditor({ onCrop }) {
                 title={t.label}
               >
                 <TemplateGlyph tpl={t} />
-                <span>{t.label}</span>
               </button>
             ))}
           </div>
         </section>
 
+        {/* Photo tray */}
         <section>
-          <h4>Auto-populate</h4>
-          <button className="btn primary" style={{ width: '100%' }} onClick={autoPopulate} disabled={!state.imageOrder.length}>
-            ✨ Auto-populate layout
-          </button>
-          <small className="muted" style={{ display: 'block', marginTop: 6 }}>
-            Builds pages from {state.selectedIds.length ? `${state.selectedIds.length} selected` : 'all'} photos,
-            preserving aspect ratio (fit, no crop) and pairing photos that fill the sheet best.
-          </small>
-        </section>
-
-        <section>
-          <h4>Photos <span className="muted">(drag into slots)</span></h4>
+          <span className="section-label">Photo Tray <span className="muted" style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, fontSize: 11 }}>(drag into slots)</span></span>
           <div className="tray">
-            {state.imageOrder.length === 0 && <p className="muted">No photos imported.</p>}
+            {state.imageOrder.length === 0 && <p className="muted" style={{ fontSize: 12 }}>No photos.</p>}
             {state.imageOrder.map((id) => {
               const img = state.images[id];
               return (
@@ -175,7 +222,9 @@ export default function LayoutEditor({ onCrop }) {
                   onDragStart={(e) => e.dataTransfer.setData('text/plain', JSON.stringify({ kind: 'tray', imageId: id }))}
                   title={img.name}
                 >
-                  {img.needsReimport ? <div className="tray-reimport">{state.hydrating ? '⏳' : '⟲'}</div> : <img src={img.thumbUrl} alt="" />}
+                  {img.needsReimport
+                    ? <div className="tray-reimport">{state.hydrating ? '⏳' : '⟲'}</div>
+                    : <img src={img.thumbUrl} alt="" />}
                 </div>
               );
             })}
@@ -186,27 +235,19 @@ export default function LayoutEditor({ onCrop }) {
       <section className="layout-main">
         <div className="page-toolbar">
           <button className="btn" onClick={() => { dispatch({ type: 'ADD_PAGE', template: page.template }); goPage(state.pages.length); }}>+ Add page</button>
-          <button className="btn" disabled={activeIdx === 0} onClick={() => { dispatch({ type: 'REORDER_PAGES', from: activeIdx, to: activeIdx - 1 }); goPage(activeIdx - 1); }}>◀ Move</button>
-          <button className="btn" disabled={activeIdx === state.pages.length - 1} onClick={() => { dispatch({ type: 'REORDER_PAGES', from: activeIdx, to: activeIdx + 1 }); goPage(activeIdx + 1); }}>Move ▶</button>
+          <button className="btn" disabled={activeIdx === 0} onClick={() => { dispatch({ type: 'REORDER_PAGES', from: activeIdx, to: activeIdx - 1 }); goPage(activeIdx - 1); }}>&#9664; Move</button>
+          <button className="btn" disabled={activeIdx === state.pages.length - 1} onClick={() => { dispatch({ type: 'REORDER_PAGES', from: activeIdx, to: activeIdx + 1 }); goPage(activeIdx + 1); }}>Move &#9654;</button>
           <button className="btn danger" onClick={() => { dispatch({ type: 'REMOVE_PAGE', pageId: page.id }); goPage(Math.max(0, activeIdx - 1)); }}>Delete page</button>
           <div className="spacer" />
 
-          <div className="zoom-control">
-            <button className={`zbtn ${zoom === 'fit' ? 'on' : ''}`} onClick={() => setZoom('fit')}>Fit</button>
+          {/* Zoom: Fit | 50 | 100 | 200 button group */}
+          <div className="zoom-group">
+            <button className={zoom === 'fit' ? 'on' : ''} onClick={() => setZoom('fit')}>Fit</button>
             {[50, 100, 200].map((z) => (
-              <button key={z} className={`zbtn ${zoom === z ? 'on' : ''}`} onClick={() => setZoom(z)}>{z}%</button>
+              <button key={z} className={zoom === z ? 'on' : ''} onClick={() => setZoom(z)}>{z}</button>
             ))}
-            <input
-              type="range" min="25" max="300" step="5"
-              value={zoom === 'fit' ? 100 : zoom}
-              onChange={(e) => setZoom(Number(e.target.value))}
-              title="Zoom (100% ≈ actual print size)"
-            />
-            <span className="muted" style={{ minWidth: 70 }}>
-              {zoom === 'fit' ? 'Fit' : `${zoom}% ${zoom === 100 ? '(actual)' : ''}`}
-            </span>
           </div>
-          <span className="muted">Page {activeIdx + 1} / {state.pages.length}</span>
+          <span className="muted" style={{ fontSize: 12 }}>Page {activeIdx + 1}/{state.pages.length}</span>
         </div>
 
         <div className={`stage ${zoom === 'fit' ? '' : 'zoomed'}`} onClick={(e) => { if (e.target === e.currentTarget) setSel(null); }}>
@@ -240,7 +281,6 @@ function clamp(v, lo, hi) {
   return Math.max(lo, Math.min(hi, v));
 }
 
-// Tiny schematic of a template's slot layout.
 function TemplateGlyph({ tpl }) {
   return (
     <span className="glyph">

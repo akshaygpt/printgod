@@ -56,24 +56,28 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
+        {/* Brand: serif wordmark with navy dot */}
         <div className="brand">
-          <span className="brand-mark">▦</span>
-          <span className="brand-text">
-            PrintGod
-            <span className="brand-sub">Print Photos Easy.</span>
-          </span>
+          <span className="brand-text">PrintGod<span className="brand-dot">.</span></span>
         </div>
 
         <Stepper steps={STEPS} current={step} maxReachable={maxReachable} onSelect={setStep} />
 
         <div className="head-actions">
-          {progress && <span className="progress">Importing {progress.done}/{progress.total}…</span>}
+          {progress && <span className="progress">Importing {progress.done}/{progress.total}&hellip;</span>}
+          {/* Save indicator: dot + label */}
           <span className={`save-status ${state.saveStatus}`} title="Edits autosave to this browser">
-            {state.saveStatus === 'saving' ? '⟳' : state.saveStatus === 'saved' ? '✓' : '•'}
+            <span className="save-dot" />
+            <span className="save-label">
+              {state.saveStatus === 'saving' ? 'Saving' : 'Saved'}
+            </span>
           </span>
-          <button className="icon-btn" disabled={!canUndo} onClick={() => dispatch({ type: 'UNDO' })} title="Undo (Ctrl+Z)" aria-label="Undo">↶</button>
-          <button className="icon-btn" disabled={!canRedo} onClick={() => dispatch({ type: 'REDO' })} title="Redo (Ctrl+Shift+Z)" aria-label="Redo">↷</button>
-          <button className="icon-btn danger" onClick={reset} title="Reset everything" aria-label="Reset">⟳</button>
+          <div className="divider" />
+          <button className="icon-btn" disabled={!canUndo} onClick={() => dispatch({ type: 'UNDO' })} title="Undo (Ctrl+Z)" aria-label="Undo">&#8630;</button>
+          <button className="icon-btn" disabled={!canRedo} onClick={() => dispatch({ type: 'REDO' })} title="Redo (Ctrl+Shift+Z)" aria-label="Redo">&#8631;</button>
+          <button className="icon-btn danger" onClick={reset} title="Reset everything" aria-label="Reset">&#10227;</button>
+          {/* Current step name pill */}
+          <span className="step-pill">{STEPS[step].label}</span>
         </div>
       </header>
 
@@ -84,32 +88,39 @@ export default function App() {
         {step === 3 && <PrintPanel />}
       </main>
 
+      {/* Footer: round nav buttons + step indicator */}
       <footer className="flow-footer">
-        <button className="btn" disabled={step === 0} onClick={() => setStep(step - 1)}>
-          ← Back
+        <button
+          className="footer-nav-btn"
+          disabled={step === 0}
+          onClick={() => setStep(step - 1)}
+          aria-label="Previous step"
+        >
+          &#8249;
         </button>
-        <span className="flow-hint">{hintFor(step, hasPhotos, state)}</span>
+
+        <span className="flow-hint">Step {step + 1} of {STEPS.length}</span>
+
         {step < STEPS.length - 1 ? (
           <button
-            className="btn primary"
+            className="footer-nav-btn"
             disabled={step === 0 && !hasPhotos}
             onClick={() => setStep(step + 1)}
+            aria-label="Next step"
           >
-            Next: {STEPS[step + 1].label} →
+            &#8250;
           </button>
         ) : (
-          <span className="footer-end muted">Export below ↑</span>
+          <button
+            className="footer-nav-btn print-pill"
+            onClick={() => {}}
+          >
+            Print
+          </button>
         )}
       </footer>
 
       {cropId && <CropModal imageId={cropId} onClose={() => setCropId(null)} />}
     </div>
   );
-}
-
-function hintFor(step, hasPhotos, state) {
-  if (step === 0) return hasPhotos ? `${state.imageOrder.length} photo${state.imageOrder.length === 1 ? '' : 's'} ready` : 'Add photos to begin';
-  if (step === 1) return 'Adjust your photos — bulk or one at a time';
-  if (step === 2) return 'Arrange photos on pages';
-  return 'Generate your print-ready PDF';
 }

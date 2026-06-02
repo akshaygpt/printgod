@@ -25,80 +25,68 @@ export default function DuplexModal({ onClose }) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal duplex-modal" onClick={(e) => e.stopPropagation()}>
-        <header className="modal-head">
-          <h3>Double-sided printing</h3>
-          <span className="muted">{total} pages · {odds} odd, {evens} even</span>
-        </header>
+        {/* Header */}
+        <div className="modal-header">
+          <h3>Duplex printing</h3>
+          <button className="modal-close" onClick={onClose} title="Close">&times;</button>
+        </div>
 
-        <label className="checkbox big">
-          <input type="checkbox" checked={autoDuplex} onChange={(e) => setAutoDuplex(e.target.checked)} />
-          My printer supports auto-duplex
-        </label>
-
-        {autoDuplex ? (
-          <p className="muted">
-            We’ll export a single PDF with all {total} pages. Enable double-sided in your OS print dialog and print.
-          </p>
-        ) : (
-          <div className="duplex-manual">
-            <p>We’ll export <strong>two PDFs</strong> — odd pages first, then even pages. Follow these steps:</p>
-            <ol>
-              <li>Print <strong>printgod-odds.pdf</strong>.</li>
-              <li>Flip the printed stack and reinsert it (see diagram).</li>
-              <li>Print <strong>printgod-evens.pdf</strong>.</li>
-            </ol>
-
-            <div className="binding-pick">
-              <button className={binding === 'long' ? 'on' : ''} onClick={() => setBinding('long')}>Long-edge binding</button>
-              <button className={binding === 'short' ? 'on' : ''} onClick={() => setBinding('short')}>Short-edge binding</button>
+        {/* Body */}
+        <div className="modal-body duplex-modal">
+          <div className="flip-diagram-wrap">
+            {/* Two page rectangles with flip arrow between */}
+            <div className="flip-pages">
+              <div className="flip-page">1</div>
+              <div className="flip-arrow">
+                <div className="flip-arrow-icon">&#8635;</div>
+                <span className="flip-arrow-label">Flip</span>
+              </div>
+              <div className="flip-page">2</div>
             </div>
-
-            <FlipDiagram binding={binding} />
+            <p className="flip-instruction">
+              {binding === 'long'
+                ? 'Flip the stack left↔right (like a book) before reinserting.'
+                : 'Flip the stack top↔bottom (like a notepad) before reinserting.'}
+            </p>
+            {/* Long edge / Short edge segmented toggle */}
+            <div className="binding-seg">
+              <button className={binding === 'long' ? 'on' : ''} onClick={() => setBinding('long')}>Long edge</button>
+              <button className={binding === 'short' ? 'on' : ''} onClick={() => setBinding('short')}>Short edge</button>
+            </div>
           </div>
-        )}
 
-        <footer className="modal-foot">
-          <button className="btn" onClick={onClose}>Cancel</button>
-          <div className="spacer" />
-          <button className="btn primary" disabled={busy} onClick={run}>
-            {busy ? 'Generating…' : autoDuplex ? 'Export single PDF' : 'Export two PDFs'}
-          </button>
-        </footer>
-      </div>
-    </div>
-  );
-}
+          <label className="checkbox big">
+            <input type="checkbox" checked={autoDuplex} onChange={(e) => setAutoDuplex(e.target.checked)} />
+            My printer supports auto-duplex
+          </label>
 
-function FlipDiagram({ binding }) {
-  // Simple SVG showing how to flip the stack for the chosen binding.
-  return (
-    <div className="flip-diagram">
-      <svg viewBox="0 0 220 120" width="220" height="120">
-        <rect x="10" y="20" width="60" height="80" rx="4" fill="#e9eef5" stroke="#9bb0c9" />
-        <text x="40" y="64" textAnchor="middle" fontSize="10" fill="#3a4a5e">odds</text>
-        <path d="M90 60 h40" stroke="#3a4a5e" strokeWidth="2" markerEnd="url(#arr)" />
-        <defs>
-          <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-            <path d="M0 0 L6 3 L0 6 z" fill="#3a4a5e" />
-          </marker>
-        </defs>
-        <g transform="translate(150,20)">
-          <rect x="0" y="0" width="60" height="80" rx="4" fill="#fff4e0" stroke="#d9a441" />
-          {binding === 'long' ? (
-            <path d="M30 8 a 22 40 0 0 1 0 64" fill="none" stroke="#d9a441" strokeWidth="2" strokeDasharray="4 3" />
+          {autoDuplex ? (
+            <p className="muted" style={{ fontSize: 13 }}>
+              We&rsquo;ll export a single PDF with all {total} pages. Enable double-sided in your OS print dialog and print.
+            </p>
           ) : (
-            <path d="M8 40 a 40 22 0 0 0 44 0" fill="none" stroke="#d9a441" strokeWidth="2" strokeDasharray="4 3" />
+            <div>
+              <p className="muted" style={{ fontSize: 13 }}>
+                We&rsquo;ll export <strong>two PDFs</strong> &mdash; odd pages first ({odds}), then even pages ({evens}). Follow the flip diagram above.
+              </p>
+              <ol className="duplex-manual" style={{ fontSize: 13, lineHeight: 1.6, paddingLeft: 20, color: 'var(--muted)' }}>
+                <li>Print <strong>printgod-odds.pdf</strong>.</li>
+                <li>Flip the printed stack and reinsert it per the diagram.</li>
+                <li>Print <strong>printgod-evens.pdf</strong>.</li>
+              </ol>
+            </div>
           )}
-          <text x="30" y="98" textAnchor="middle" fontSize="9" fill="#7a5a14">
-            flip {binding === 'long' ? 'left↔right' : 'top↔bottom'}
-          </text>
-        </g>
-      </svg>
-      <p className="muted">
-        {binding === 'long'
-          ? 'Long-edge: flip the stack left-to-right (like a book) before reinserting.'
-          : 'Short-edge: flip the stack top-to-bottom (like a notepad) before reinserting.'}
-      </p>
+        </div>
+
+        {/* Footer */}
+        <div className="modal-footer">
+          <button className="modal-cancel" onClick={onClose} title="Cancel">&times;</button>
+          <div className="spacer" />
+          <button className="modal-apply" disabled={busy} onClick={run}>
+            {busy ? 'Generating…' : autoDuplex ? 'Print' : 'Print'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
