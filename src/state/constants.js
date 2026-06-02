@@ -33,14 +33,14 @@ export const DEFAULT_FILTERS = {
 };
 
 export const FILTER_CONTROLS = [
-  { key: 'exposure', label: 'Exposure', min: -100, max: 100 },
-  { key: 'brightness', label: 'Brightness', min: -100, max: 100 },
-  { key: 'contrast', label: 'Contrast', min: -100, max: 100 },
-  { key: 'saturation', label: 'Saturation', min: -100, max: 100 },
-  { key: 'warmth', label: 'Warmth', min: -100, max: 100 },
-  { key: 'fade', label: 'Fade', min: 0, max: 100 },
-  { key: 'grain', label: 'Grain', min: 0, max: 100 },
-  { key: 'vignette', label: 'Vignette', min: 0, max: 100 },
+  { key: 'exposure',    label: 'Exposure',    min: -100, max: 100, icon: '☉', section: 'tone' },
+  { key: 'brightness',  label: 'Brightness',  min: -100, max: 100, icon: '☀', section: 'tone' },
+  { key: 'contrast',    label: 'Contrast',    min: -100, max: 100, icon: '◑', section: 'tone' },
+  { key: 'saturation',  label: 'Saturation',  min: -100, max: 100, icon: '◆', section: 'tone' },
+  { key: 'warmth',      label: 'Warmth',      min: -100, max: 100, icon: '☀︎', section: 'tone' },
+  { key: 'fade',        label: 'Fade',        min: 0,    max: 100, icon: '≡', section: 'tone' },
+  { key: 'grain',       label: 'Grain',       min: 0,    max: 100, icon: '⊞', section: 'texture' },
+  { key: 'vignette',    label: 'Vignette',    min: 0,    max: 100, icon: '⊟', section: 'texture' },
 ];
 
 export const FILTER_TOGGLES = [
@@ -91,7 +91,6 @@ export const TEMPLATES = {
   polaroid: {
     label: 'Polaroid + Caption',
     polaroid: true,
-    // single centered image with a thick white border and caption strip below.
     slots: [{ x: 0.12, y: 0.1, w: 0.76, h: 0.62, caption: true }],
   },
   magazine: {
